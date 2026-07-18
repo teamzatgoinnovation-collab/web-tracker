@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ZatGoApi } from "@zatgo/erpnext";
+import { TrackerApi, ZatGoApi } from "@zatgo/erpnext";
 import { callZatGoApi } from "@/lib/call-zatgo-api";
 
 type DashboardStats = {
@@ -23,9 +23,9 @@ export default function HomePage() {
     let cancelled = false;
     void (async () => {
       try {
-        await callZatGoApi(ZatGoApi.projectTracker.ping);
+        await callZatGoApi(ZatGoApi.health.ping);
         if (!cancelled) setHubOk(true);
-        const env = await callZatGoApi<DashboardStats>(ZatGoApi.projectTracker.dashboardSummary);
+        const env = await callZatGoApi<DashboardStats>(TrackerApi.tasksList);
         if (cancelled) return;
         setStats(env.data ?? null);
         setStatus("Connected");

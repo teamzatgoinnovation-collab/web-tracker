@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ZatGoApi } from "@zatgo/erpnext";
+import { TrackerApi, ZatGoApi } from "@zatgo/erpnext";
 import { callZatGoApi } from "@/lib/call-zatgo-api";
 
 type ProjectRow = {
@@ -25,7 +25,7 @@ export default function ProjectsPage() {
     let cancelled = false;
     void (async () => {
       try {
-        const env = await callZatGoApi<ProjectRow[]>(ZatGoApi.projectTracker.projectsList, {
+        const env = await callZatGoApi<ProjectRow[]>(TrackerApi.projectsList, {
           page: 1,
           page_size: 50,
         });
