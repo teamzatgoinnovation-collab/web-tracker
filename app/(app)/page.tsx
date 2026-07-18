@@ -7,6 +7,22 @@ import { callZatGoApi } from "@/lib/call-zatgo-api";
 
 type TaskRow = { name?: string; status?: string; project?: string };
 type ProjectRow = { name?: string; status?: string };
+type RunningRow = {
+  name?: string;
+  user?: string;
+  task?: string;
+  project?: string;
+  elapsed_seconds?: number;
+  status?: string;
+};
+
+function formatElapsed(sec?: number) {
+  const s = Math.max(0, Math.floor(sec || 0));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
+}
 
 export default function HomePage() {
   const [status, setStatus] = useState("Loading…");
@@ -14,7 +30,7 @@ export default function HomePage() {
   const [projectsTotal, setProjectsTotal] = useState(0);
   const [tasksOpen, setTasksOpen] = useState(0);
   const [tasksDone, setTasksDone] = useState(0);
-  const [running, setRunning] = useState(0);
+  const [runningRows, setRunningRows] = useState<RunningRow[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,7 +41,7 @@ export default function HomePage() {
         const [projects, tasks, runningEnv] = await Promise.all([
           callZatGoApi<ProjectRow[]>(TrackerApi.projectsList, { page: 1, page_size: 200 }),
           callZatGoApi<TaskRow[]>(TrackerApi.tasksList, { mine: 1, page: 1, page_size: 200 }),
-          callZatGoApi<unknown[]>(TrackerApi.activityRunningNow),
+          callZatGoApi<RunningRow[]>(TrackerApi.activityRunningNow),
         ]);
         if (cancelled) return;
         const plist = Array.isArray(projects.data) ? projects.data : [];
@@ -33,7 +49,7 @@ export default function HomePage() {
         setProjectsTotal(plist.length);
         setTasksOpen(tlist.filter((t) => t.status !== "Completed" && t.status !== "Cancelled").length);
         setTasksDone(tlist.filter((t) => t.status === "Completed").length);
-        setRunning(Array.isArray(runningEnv.data) ? runningEnv.data.length : 0);
+        setRunningRows(Array.isArray(runningEnv.data) ? runningEnv.data : []);
         setStatus("Connected");
       } catch (e) {
         if (!cancelled) setStatus(e instanceof Error ? e.message : "API error");
@@ -48,7 +64,7 @@ export default function HomePage() {
     { label: "Projects", value: projectsTotal },
     { label: "Open tasks (mine)", value: tasksOpen },
     { label: "Completed (mine)", value: tasksDone },
-    { label: "Running now", value: running },
+    { label: "Running now", value: runningRows.length },
   ];
 
   return (
@@ -71,6 +87,25 @@ export default function HomePage() {
             <p className="text-2xl font-semibold tabular-nums">{c.value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="space-y-2">
+        <h2 className="text-lg font-medium">Who is running</h2>
+        {runningRows.length === 0 ? (
+          <p className="text-sm text-[var(--color-muted-foreground)]">No active timers.</p>
+        ) : (
+          <ul className="space-y-1 text-sm">
+            {runningRows.map((r) => (
+              <li key={r.name} className="border-b border-[var(--color-border)] py-2 last:border-0">
+                <span className="font-medium">{r.user}</span>
+                {" · "}
+                {r.task || r.project || r.name}
+                {" · "}
+                {formatElapsed(r.elapsed_seconds)}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-4 text-sm">
