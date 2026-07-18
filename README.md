@@ -1,9 +1,9 @@
-# project-tracker-web
+# tracker-web
 
-**Status:** Thin client on real `project_tracker` APIs (dashboard / projects / tasks)  
+**Status:** Thin client on real `tracker` APIs (dashboard / projects / tasks)  
 **Kind:** Next.js  
-**Backend:** `project_tracker` (+ hub `zatgo_core` ping)  
-**Package:** `@zatgo/project-tracker-web`  
+**Backend:** `tracker` (+ hub `zatgo_core` ping)  
+**Package:** `@zatgo/tracker-web`  
 **Stack:** [FRONTEND_STACK](../../Docs/Foundation/FRONTEND_STACK.md)
 
 ## Auth
@@ -26,7 +26,7 @@ Kanban / Gantt / approvals remain on Frappe Desk.
 
 ```bash
 pnpm install
-pnpm --filter @zatgo/project-tracker-web dev
+pnpm --filter @zatgo/tracker-web dev
 # → http://localhost:3004
 ```
 
@@ -35,5 +35,5 @@ Optional:
 ```bash
 NEXT_PUBLIC_FRAPPE_BASE_URL=http://127.0.0.1:8082 \
 ALLOW_INSECURE_DEV_SECRETS=1 \
-pnpm --filter @zatgo/project-tracker-web dev
+pnpm --filter @zatgo/tracker-web dev
 ```

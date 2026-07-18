@@ -40,7 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <AppShellLayout
-      productTitle="Project Tracker"
+      productTitle="Tracker"
       nav={nav}
       pathname={pathname}
       renderLink={({ href, className, children: linkChildren }) => (

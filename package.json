@@ -1,5 +1,5 @@
 {
-  "name": "@zatgo/project-tracker-web",
+  "name": "@zatgo/tracker-web",
   "version": "0.1.0",
   "private": true,
   "scripts": {

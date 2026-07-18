@@ -66,7 +66,7 @@ export const useSessionStore = create<SessionState>()(
       setHydrated: (value) => set({ hydrated: value }),
     }),
     {
-      name: "zatgo-project-tracker-web-session",
+      name: "zatgo-tracker-web-session",
       partialize: (s) => ({
         connection: { baseUrl: s.connection.baseUrl },
         allowMockWithoutLogin: s.allowMockWithoutLogin,

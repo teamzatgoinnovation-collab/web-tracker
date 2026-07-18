@@ -51,7 +51,7 @@ export function LoginForm() {
 
   return (
     <ErpnextLoginCard
-      productTitle="Project Tracker"
+      productTitle="Tracker"
       usr={usr}
       pwd={pwd}
       busy={busy}

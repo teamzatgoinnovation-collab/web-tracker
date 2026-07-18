@@ -4,8 +4,8 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Project Tracker · ZatGo", template: "%s · Project Tracker" },
-  description: "Project Tracker for ZatGo — ERPNext connected app.",
+  title: { default: "Tracker · ZatGo", template: "%s · Tracker" },
+  description: "Tracker for ZatGo — ERPNext connected app.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
