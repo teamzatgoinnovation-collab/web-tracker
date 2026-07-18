@@ -14,6 +14,7 @@ const nav: AppShellNavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { href: "/projects", label: "Projects", icon: ClipboardList },
   { href: "/tasks", label: "Tasks", icon: ClipboardList },
+  { href: "/tickets", label: "Tickets", icon: ClipboardList },
   { href: "/connection", label: "Connection", icon: Settings },
 ];
 

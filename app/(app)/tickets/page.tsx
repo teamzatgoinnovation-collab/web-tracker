@@ -5,31 +5,30 @@ import { TrackerApi } from "@zatgo/erpnext";
 import { toast } from "sonner";
 import { callZatGoApi } from "@/lib/call-zatgo-api";
 
-type ProjectRow = {
+type TicketRow = {
   name?: string;
-  project_name?: string;
+  subject?: string;
   status?: string;
-  company?: string;
+  project?: string;
+  priority?: string;
 };
 
-function asRows(data: unknown): ProjectRow[] {
-  return Array.isArray(data) ? (data as ProjectRow[]) : [];
+function asRows(data: unknown): TicketRow[] {
+  return Array.isArray(data) ? (data as TicketRow[]) : [];
 }
 
-export default function ProjectsPage() {
+export default function TicketsPage() {
   const [status, setStatus] = useState("Loading…");
-  const [rows, setRows] = useState<ProjectRow[]>([]);
-  const [total, setTotal] = useState<number | null>(null);
-  const [name, setName] = useState("");
+  const [rows, setRows] = useState<TicketRow[]>([]);
+  const [subject, setSubject] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const env = await callZatGoApi<ProjectRow[]>(TrackerApi.projectsList, {
+    const env = await callZatGoApi<TicketRow[]>(TrackerApi.ticketsList, {
       page: 1,
       page_size: 50,
     });
     setRows(asRows(env.data));
-    setTotal(typeof env.meta?.total === "number" ? Number(env.meta.total) : asRows(env.data).length);
     setStatus("Connected");
   }, []);
 
@@ -37,13 +36,13 @@ export default function ProjectsPage() {
     void load().catch((e) => setStatus(e instanceof Error ? e.message : "API error"));
   }, [load]);
 
-  const createProject = async () => {
-    if (!name.trim()) return;
+  const createTicket = async () => {
+    if (!subject.trim()) return;
     setBusy(true);
     try {
-      await callZatGoApi(TrackerApi.projectsCreate, { project_name: name.trim() });
-      setName("");
-      toast.success("Project created");
+      await callZatGoApi(TrackerApi.ticketsCreate, { subject: subject.trim() });
+      setSubject("");
+      toast.success("Ticket created");
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Create failed");
@@ -55,49 +54,46 @@ export default function ProjectsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Projects</h1>
-        <p className="text-sm text-[var(--color-muted-foreground)]">
-          {status}
-          {total !== null ? ` · ${total} total` : null}
-        </p>
+        <h1 className="text-2xl font-semibold">Tickets</h1>
+        <p className="text-sm text-[var(--color-muted-foreground)]">{status}</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <input
           className="min-w-[16rem] flex-1 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-transparent px-3 py-2 text-sm"
-          placeholder="New project name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          placeholder="New ticket subject"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
         />
         <button
           className="rounded-[var(--radius-md)] bg-[var(--color-primary)] px-3 py-2 text-sm text-white disabled:opacity-50"
-          disabled={busy || !name.trim()}
-          onClick={() => void createProject()}
+          disabled={busy || !subject.trim()}
+          onClick={() => void createTicket()}
         >
           Create
         </button>
       </div>
       <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-border)]">
-        <table className="w-full min-w-[36rem] text-left text-sm">
+        <table className="w-full min-w-[32rem] text-left text-sm">
           <thead className="border-b border-[var(--color-border)] bg-[var(--color-muted)]/40 text-xs uppercase tracking-wide text-[var(--color-muted-foreground)]">
             <tr>
-              <th className="px-3 py-2 font-medium">Name</th>
+              <th className="px-3 py-2 font-medium">Subject</th>
+              <th className="px-3 py-2 font-medium">Project</th>
               <th className="px-3 py-2 font-medium">Status</th>
-              <th className="px-3 py-2 font-medium">Company</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
                 <td className="px-3 py-4 text-[var(--color-muted-foreground)]" colSpan={3}>
-                  No projects returned.
+                  No tickets.
                 </td>
               </tr>
             ) : (
               rows.map((row) => (
                 <tr key={row.name} className="border-b border-[var(--color-border)] last:border-0">
-                  <td className="px-3 py-2">{row.project_name || row.name}</td>
+                  <td className="px-3 py-2">{row.subject || row.name}</td>
+                  <td className="px-3 py-2">{row.project ?? "—"}</td>
                   <td className="px-3 py-2">{row.status ?? "—"}</td>
-                  <td className="px-3 py-2">{row.company ?? "—"}</td>
                 </tr>
               ))
             )}
