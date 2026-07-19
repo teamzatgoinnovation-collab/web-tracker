@@ -28,18 +28,36 @@ export default function ReportsPage() {
   const [byProject, setByProject] = useState<HoursRow[]>([]);
   const [byUser, setByUser] = useState<HoursRow[]>([]);
   const [status, setStatus] = useState("Loading…");
+  const [canSubmitTs, setCanSubmitTs] = useState(false);
 
   const load = useCallback(async () => {
     setStatus("Loading…");
     const args = { from_date: fromDate, to_date: toDate, page_size: 100 };
-    const [p, u] = await Promise.all([
+    const [p, u, tree] = await Promise.all([
       callZatGoApi<HoursRow[]>(TrackerApi.hoursByProject, args),
       callZatGoApi<HoursRow[]>(TrackerApi.hoursByUser, args),
+      callZatGoApi<{ can_submit_timesheets?: boolean }>(TrackerApi.hierarchyMyTree, {}),
     ]);
     setByProject(Array.isArray(p.data) ? p.data : []);
     setByUser(Array.isArray(u.data) ? u.data : []);
+    setCanSubmitTs(!!tree.data?.can_submit_timesheets);
     setStatus("Connected");
   }, [fromDate, toDate]);
+
+  const submitTeam = async () => {
+    try {
+      const env = await callZatGoApi<{ submitted?: string[]; errors?: { name: string; error: string }[] }>(
+        TrackerApi.timesheetsSubmitTeam,
+        { from_date: fromDate, to_date: toDate },
+      );
+      const n = env.data?.submitted?.length || 0;
+      const err = env.data?.errors?.length || 0;
+      setStatus(`Submitted ${n} timesheet(s), ${err} error(s)`);
+      await load();
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Submit failed");
+    }
+  };
 
   useEffect(() => {
     void load().catch((e) => setStatus(e instanceof Error ? e.message : "Error"));
@@ -76,6 +94,14 @@ export default function ReportsPage() {
         >
           Load
         </button>
+        {canSubmitTs ? (
+          <button
+            className="rounded-[var(--radius-md)] border border-[var(--color-border)] px-3 py-1.5 text-sm"
+            onClick={() => void submitTeam()}
+          >
+            Submit team timesheets
+          </button>
+        ) : null}
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <HoursTable

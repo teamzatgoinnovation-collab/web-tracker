@@ -6,12 +6,11 @@ import { TrackerApi } from "@zatgo/erpnext";
 import { toast } from "sonner";
 import { callZatGoApi } from "@/lib/call-zatgo-api";
 
-const TASK_STATUSES = ["Open", "Working", "Pending Review", "Completed", "Cancelled"] as const;
-
 type TaskRow = {
   name?: string;
   subject?: string;
   status?: string;
+  stage?: string;
   project?: string;
   priority?: string;
   parent_task?: string;
@@ -19,6 +18,11 @@ type TaskRow = {
 };
 
 type TreePerson = { user?: string; full_name?: string; is_self?: boolean };
+type Caps = {
+  can_manage_work?: boolean;
+  can_review?: boolean;
+  can_submit_timesheets?: boolean;
+};
 type Preset = { id?: string; name?: string; scope?: string; project?: string; status?: string };
 
 type ActiveSession = {
@@ -59,6 +63,7 @@ export default function TasksPage() {
   const [newSubject, setNewSubject] = useState("");
   const [assignUser, setAssignUser] = useState("");
   const [people, setPeople] = useState<TreePerson[]>([]);
+  const [caps, setCaps] = useState<Caps>({});
   const [elapsed, setElapsed] = useState(0);
 
   const syncQuery = useCallback(
@@ -86,7 +91,7 @@ export default function TasksPage() {
     const [env, activeEnv, treeEnv, presetsEnv] = await Promise.all([
       callZatGoApi<TaskRow[]>(TrackerApi.tasksList, params),
       callZatGoApi<ActiveSession>(TrackerApi.activityActive),
-      callZatGoApi<{ people?: TreePerson[] }>(TrackerApi.hierarchyMyTree),
+      callZatGoApi<Caps & { people?: TreePerson[] }>(TrackerApi.hierarchyMyTree),
       callZatGoApi<{ last?: Preset; presets?: Preset[] }>(TrackerApi.filtersGetPresets),
     ]);
     setRows(asRows(env.data));
@@ -95,6 +100,11 @@ export default function TasksPage() {
     setActive(sess);
     setElapsed(sess?.elapsed_seconds || 0);
     setPeople(Array.isArray(treeEnv.data?.people) ? treeEnv.data.people : []);
+    setCaps({
+      can_manage_work: !!treeEnv.data?.can_manage_work,
+      can_review: !!treeEnv.data?.can_review,
+      can_submit_timesheets: !!treeEnv.data?.can_submit_timesheets,
+    });
     setPresets(Array.isArray(presetsEnv.data?.presets) ? presetsEnv.data.presets : []);
     setStatus("Connected");
   }, [scope, projectFilter, statusFilter]);
@@ -169,14 +179,24 @@ export default function TasksPage() {
     syncQuery({ scope: next, project: projectFilter || undefined, status: statusFilter || undefined });
   };
 
-  const onStatusChange = async (name: string, next: string) => {
+  const lifecycle = async (name: string, kind: "ready" | "approve" | "rework") => {
     setBusy(name);
     try {
-      await callZatGoApi(TrackerApi.updateTaskStatus, { name, status: next });
-      toast.success(`Updated ${name} → ${next}`);
+      if (kind === "ready") {
+        await callZatGoApi(TrackerApi.tasksSubmitForReview, { name });
+        toast.success("Submitted for review");
+      } else if (kind === "approve") {
+        await callZatGoApi(TrackerApi.tasksApprove, { name });
+        toast.success("Approved");
+      } else {
+        const note = window.prompt("Rework note");
+        if (!note?.trim()) return;
+        await callZatGoApi(TrackerApi.tasksRequestRework, { name, note: note.trim() });
+        toast.success("Rework requested");
+      }
       await load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Update failed");
+      toast.error(e instanceof Error ? e.message : "Action failed");
     } finally {
       setBusy(null);
     }
@@ -383,40 +403,42 @@ export default function TasksPage() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <input
-          className="min-w-[14rem] flex-1 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-transparent px-3 py-2 text-sm"
-          placeholder={selected ? "New subtask under selection" : "New task subject"}
-          value={newSubject}
-          onChange={(e) => setNewSubject(e.target.value)}
-        />
-        <button
-          className="rounded-[var(--radius-md)] bg-[var(--color-primary)] px-3 py-2 text-sm text-white disabled:opacity-50"
-          disabled={!!busy || !newSubject.trim()}
-          onClick={() => void createTask()}
-        >
-          Create
-        </button>
-        <select
-          className="min-w-[12rem] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-transparent px-3 py-2 text-sm"
-          value={assignUser}
-          onChange={(e) => setAssignUser(e.target.value)}
-        >
-          <option value="">Assign to…</option>
-          {people.map((p) => (
-            <option key={p.user} value={p.user}>
-              {(p.full_name || p.user) + (p.is_self ? " (you)" : "")}
-            </option>
-          ))}
-        </select>
-        <button
-          className="rounded-[var(--radius-md)] border border-[var(--color-border)] px-3 py-2 text-sm disabled:opacity-50"
-          disabled={!!busy || !selected || !assignUser.trim()}
-          onClick={() => void assignSelected()}
-        >
-          Assign
-        </button>
-      </div>
+      {caps.can_manage_work ? (
+        <div className="flex flex-wrap gap-2">
+          <input
+            className="min-w-[14rem] flex-1 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-transparent px-3 py-2 text-sm"
+            placeholder={selected ? "New subtask under selection" : "New task subject (Draft)"}
+            value={newSubject}
+            onChange={(e) => setNewSubject(e.target.value)}
+          />
+          <button
+            className="rounded-[var(--radius-md)] bg-[var(--color-primary)] px-3 py-2 text-sm text-white disabled:opacity-50"
+            disabled={!!busy || !newSubject.trim()}
+            onClick={() => void createTask()}
+          >
+            Create
+          </button>
+          <select
+            className="min-w-[12rem] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-transparent px-3 py-2 text-sm"
+            value={assignUser}
+            onChange={(e) => setAssignUser(e.target.value)}
+          >
+            <option value="">Assign to…</option>
+            {people.map((p) => (
+              <option key={p.user} value={p.user}>
+                {(p.full_name || p.user) + (p.is_self ? " (you)" : "")}
+              </option>
+            ))}
+          </select>
+          <button
+            className="rounded-[var(--radius-md)] border border-[var(--color-border)] px-3 py-2 text-sm disabled:opacity-50"
+            disabled={!!busy || !selected || !assignUser.trim()}
+            onClick={() => void assignSelected()}
+          >
+            Assign
+          </button>
+        </div>
+      ) : null}
 
       <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-border)]">
         <table className="w-full min-w-[40rem] text-left text-sm">
@@ -424,8 +446,8 @@ export default function TasksPage() {
             <tr>
               <th className="px-3 py-2 font-medium">Subject</th>
               <th className="px-3 py-2 font-medium">Project</th>
-              <th className="px-3 py-2 font-medium">Priority</th>
-              <th className="px-3 py-2 font-medium">Status</th>
+              <th className="px-3 py-2 font-medium">Stage</th>
+              <th className="px-3 py-2 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -436,38 +458,55 @@ export default function TasksPage() {
                 </td>
               </tr>
             ) : (
-              treeRows.map(({ row, depth }) => (
-                <tr
-                  key={row.name}
-                  className={`cursor-pointer border-b border-[var(--color-border)] last:border-0 ${
-                    selected === row.name ? "bg-[var(--color-muted)]/50" : ""
-                  }`}
-                  onClick={() => setSelected(row.name ?? null)}
-                >
-                  <td className="px-3 py-2" style={{ paddingLeft: `${12 + depth * 16}px` }}>
-                    {row.subject || row.name}
-                  </td>
-                  <td className="px-3 py-2">{row.project ?? "—"}</td>
-                  <td className="px-3 py-2">{row.priority ?? "—"}</td>
-                  <td className="px-3 py-2">
-                    <select
-                      className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-transparent px-2 py-1"
-                      value={row.status ?? "Open"}
-                      disabled={!row.name || busy === row.name}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => {
-                        if (row.name) void onStatusChange(row.name, e.target.value);
-                      }}
-                    >
-                      {TASK_STATUSES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              ))
+              treeRows.map(({ row, depth }) => {
+                const stage = row.stage || row.status || "—";
+                return (
+                  <tr
+                    key={row.name}
+                    className={`cursor-pointer border-b border-[var(--color-border)] last:border-0 ${
+                      selected === row.name ? "bg-[var(--color-muted)]/50" : ""
+                    }`}
+                    onClick={() => setSelected(row.name ?? null)}
+                  >
+                    <td className="px-3 py-2" style={{ paddingLeft: `${12 + depth * 16}px` }}>
+                      {row.subject || row.name}
+                    </td>
+                    <td className="px-3 py-2">{row.project ?? "—"}</td>
+                    <td className="px-3 py-2">{stage}</td>
+                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex flex-wrap gap-1">
+                        {stage === "In Progress" && row.name ? (
+                          <button
+                            className="rounded border border-[var(--color-border)] px-2 py-0.5 text-xs"
+                            disabled={!!busy}
+                            onClick={() => void lifecycle(row.name!, "ready")}
+                          >
+                            Ready for Review
+                          </button>
+                        ) : null}
+                        {stage === "Ready for Review" && caps.can_review && row.name ? (
+                          <>
+                            <button
+                              className="rounded border border-[var(--color-border)] px-2 py-0.5 text-xs"
+                              disabled={!!busy}
+                              onClick={() => void lifecycle(row.name!, "approve")}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              className="rounded border border-[var(--color-border)] px-2 py-0.5 text-xs"
+                              disabled={!!busy}
+                              onClick={() => void lifecycle(row.name!, "rework")}
+                            >
+                              Rework
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
