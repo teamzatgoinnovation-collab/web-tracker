@@ -25,7 +25,7 @@ type SessionState = {
 };
 
 const defaultBaseUrl =
-  process.env.NEXT_PUBLIC_FRAPPE_BASE_URL || "http://127.0.0.1:8082";
+  process.env.NEXT_PUBLIC_FRAPPE_BASE_URL || "https://erp.zatgo.online";
 
 export const useSessionStore = create<SessionState>()(
   persist(
