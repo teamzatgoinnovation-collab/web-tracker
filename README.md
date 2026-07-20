@@ -33,7 +33,7 @@ pnpm --filter @zatgo/tracker-web dev
 Optional:
 
 ```bash
-NEXT_PUBLIC_FRAPPE_BASE_URL=https://erp.zatgo.online \
+NEXT_PUBLIC_FRAPPE_BASE_URL=https://demo.zatgo.online \
 ALLOW_INSECURE_DEV_SECRETS=1 \
 pnpm --filter @zatgo/tracker-web dev
 ```
